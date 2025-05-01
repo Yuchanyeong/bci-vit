@@ -1,0 +1,7 @@
+torch
+timm
+numpy
+scipy
+mne
+PyYAML
+tqdm

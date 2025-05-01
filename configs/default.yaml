@@ -1,0 +1,17 @@
+train:
+  batch_size: 16
+  num_epochs: 200
+  learning_rate: 0.0001
+
+model:
+  type: vit        # 'vit' 또는 'cnn_vit'로 선택
+  img_size: 32
+  patch_size: 16
+  num_classes: 4
+  in_chans: 25
+  dropout_rate: 0.4      # CNN/ViT 모두에 적용
+
+data:
+  preprocessed_dir: data/preprocessed_wave
+  save_experiment_dir: experiments/LOSO_subject02
+  test_subject: subject02

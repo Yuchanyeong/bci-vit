@@ -1,0 +1,14 @@
+train:
+  batch_size: 16
+  num_epochs: 300
+  learning_rate: 0.001
+
+model:
+  img_size: 32
+  patch_size: 4
+  num_classes: 4
+  in_chans: 25
+
+data:
+  preprocessed_dir: data/preprocessed
+  save_experiment_dir: experiments/TrainT_EvalE
