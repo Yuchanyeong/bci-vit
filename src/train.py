@@ -7,11 +7,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+import torchvision.transforms as T
 from pathlib import Path
 import matplotlib.pyplot as plt
 
 from src.dataloaders.eeg_dataset import EEGSpectrogramDataset
-from src.models.vit_custom import create_vit_model, CNN_ViT_Model
+from src.models.vit_custom import create_vit_model, create_vit_model2 ,CNN_ViT_Model
 
 def load_config(config_path):
     with open(config_path) as f:
@@ -26,7 +27,15 @@ def main(args):
 
     preprocessed_dir = config['data']['preprocessed_dir']
     test_subject = config['data']['test_subject']
+    
+        
+    # ★ 1) Resize transform 정의 (채널, H, W tensor에도 적용 가능)
+    #transform = T.Compose([
+    #    T.Resize((224, 224)),
+    #])
 
+    
+    
     # 학습/테스트 데이터 준비
     subjects = sorted(os.listdir(preprocessed_dir))
     train_subjects = [s for s in subjects if s != test_subject]
@@ -34,17 +43,38 @@ def main(args):
     
     normalize = True
 
-    train_dataset = EEGSpectrogramDataset(preprocessed_dir, subjects=train_subjects)
-    test_dataset  = EEGSpectrogramDataset(preprocessed_dir, subjects=test_subjects)
+    # 강제 224 변경 
+    #train_dataset = EEGSpectrogramDataset(preprocessed_dir, subjects=train_subjects, transform = transform)
+    #test_dataset  = EEGSpectrogramDataset(preprocessed_dir, subjects=test_subjects, transform = transform)
 
+    train_dataset = EEGSpectrogramDataset(
+        data_dir      = preprocessed_dir,
+        subjects      = train_subjects,
+        session_types = ['T'],
+        normalize     = True
+    )
+    test_dataset = EEGSpectrogramDataset(
+        data_dir      = preprocessed_dir,
+        subjects      = test_subjects,
+        session_types = ['T'],
+        normalize     = True   
+    )
+    
     train_loader = DataLoader(train_dataset, batch_size=config['train']['batch_size'], shuffle=True, num_workers=0)
     test_loader  = DataLoader(test_dataset, batch_size=config['train']['batch_size'], shuffle=False, num_workers=0)
 
-    model_type = config['model'].get('type', 'vit')
+    model_type = config['model'].get('type', 'vit2')
     # 모델 생성
     if model_type == 'vit':
         model = create_vit_model(
             img_size=config['model']['img_size'],
+            patch_size=config['model']['patch_size'],
+            num_classes=config['model']['num_classes'],
+            in_chans=config['model']['in_chans'],
+        ).to(device)
+    elif model_type == 'vit2':
+        model = create_vit_model2(
+           img_size=config['model']['img_size'],
             patch_size=config['model']['patch_size'],
             num_classes=config['model']['num_classes'],
             in_chans=config['model']['in_chans'],
@@ -93,11 +123,10 @@ def main(args):
         print(f"[Epoch {epoch}] Loss: {avg_loss:.4f} | Train Accuracy: {train_acc*100:.2f}%")
         
         train_losses.append(avg_loss)
-       
         train_accuracies.append(train_acc)
         
         # 평가
-        model.eval()
+        #model.eval()
         correct = 0
         total = 0
         with torch.no_grad():

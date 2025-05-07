@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 
 class EEGSpectrogramDataset(Dataset):
-    def __init__(self, data_dir, subjects=None, session_types=['T', 'E'], transform=None, normalize=False):
+    def __init__(self, data_dir, subjects=None, session_types=['T', 'E'], transform=None, normalize=True):
         """
         data_dir: 전처리된 데이터 루트 경로 (vit/data/preprocessed)
         subjects: 사용할 subject 리스트 (ex: ['subject01', 'subject02', ...])
@@ -41,6 +41,7 @@ class EEGSpectrogramDataset(Dataset):
         data = np.load(path)
         
         
+        
         # Z-score 정규화
         if self.normalize:
             mean = np.mean(data, axis=(1, 2), keepdims=True)  # 채널마다 평균
@@ -51,5 +52,6 @@ class EEGSpectrogramDataset(Dataset):
         
         if self.transform:
             data = self.transform(data)
+            
         
         return data, label

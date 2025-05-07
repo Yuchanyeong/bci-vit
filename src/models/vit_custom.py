@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 
-def create_vit_model(img_size=32, patch_size=4, num_classes=4, in_chans=25, dropout_rate=0.5):
+def create_vit_model(img_size=32, patch_size=4, num_classes=4, in_chans=22, dropout_rate=0.5,freeze_backbone=True):
     """
     ViT 모델 생성: EEG 입력에 맞게 Conv2D 수정 + 입력 크기 재정의 + 드롭아웃 적용
     """
@@ -16,7 +16,7 @@ def create_vit_model(img_size=32, patch_size=4, num_classes=4, in_chans=25, drop
         drop_rate=dropout_rate,     # 전체 dropout
         attn_drop_rate=dropout_rate # attention dropout
     )
-
+    
     # patch embedding 수정
     model.patch_embed.proj = nn.Conv2d(
         in_channels=in_chans,
@@ -43,6 +43,56 @@ def create_vit_model(img_size=32, patch_size=4, num_classes=4, in_chans=25, drop
     #     nn.Dropout(dropout_rate),
     #     nn.Linear(model.head.in_features, num_classes)
     # )
+
+    #if freeze_backbone:
+    #    for param in model.parameters():
+    #        param.requires_grad = False  # 전체 freeze
+    #    
+        # head (classification) 부분만 학습 허용
+    #    for param in model.head.parameters():
+    #        param.requires_grad = True
+        
+        # 필요 시 positional embedding도 학습 허용
+    #    model.pos_embed.requires_grad = True
+        
+    return model
+
+def create_vit_model2(img_size=32, patch_size=4, num_classes=4, in_chans=25, dropout_rate=0.5, freeze_backbone=True):
+    model = timm.create_model(
+        'vit_tiny_patch16_224',
+        pretrained=True,
+        num_classes=num_classes,
+        drop_rate=dropout_rate,
+        attn_drop_rate=dropout_rate
+    )
+    model.patch_embed.proj = nn.Conv2d(
+        in_channels=in_chans,
+        out_channels=model.patch_embed.proj.out_channels,
+        kernel_size=(patch_size, patch_size),
+        stride=(patch_size, patch_size)
+    )
+    
+    
+    model.patch_embed.img_size = (img_size, img_size)
+    model.patch_embed.grid_size = (img_size // patch_size, img_size // patch_size)
+    model.num_patches = model.patch_embed.grid_size[0] * model.patch_embed.grid_size[1]
+    model.pos_embed = nn.Parameter(
+        torch.zeros(1, model.num_patches + 1, model.pos_embed.shape[-1])
+    )
+    nn.init.trunc_normal_(model.pos_embed, std=0.02)
+
+    # patch embedding weight 초기화 (in_chans!=3)
+    if in_chans != 3:
+        nn.init.kaiming_normal_(model.patch_embed.proj.weight, mode='fan_out', nonlinearity='relu')
+        if model.patch_embed.proj.bias is not None:
+            nn.init.constant_(model.patch_embed.proj.bias, 0)
+
+    # head 커스터마이즈 (optional)
+    model.head = nn.Sequential(
+        nn.LayerNorm(model.head.in_features),
+        nn.Dropout(dropout_rate),
+        nn.Linear(model.head.in_features, num_classes)
+    )
 
     return model
 
